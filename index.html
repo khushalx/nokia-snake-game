@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SNAKE 3D — Nokia 3310</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323:wght@400&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:radial-gradient(ellipse at 40% 30%, #1a1208 0%, #0a0806 50%, #050402 100%);
+  width:100vw;height:100vh;overflow:hidden;
+  font-family:'Share Tech Mono',monospace;
+}
+#c{display:block;position:fixed;inset:0;width:100%;height:100%;}
+
+/* ─── SCREEN OVERLAY UI (shown on phone screen as DOM) ─── */
+#ui{
+  position:fixed;inset:0;pointer-events:none;z-index:10;
+  display:flex;align-items:center;justify-content:center;
+}
+
+/* SCORE HUD — top left of viewport */
+#score-panel{
+  position:fixed;top:20px;left:20px;z-index:20;
+  padding:12px 20px;
+  background:rgba(10,12,8,0.85);
+  border:1px solid rgba(155,188,15,0.3);
+  border-radius:4px;
+  box-shadow:0 0 20px rgba(155,188,15,0.08), inset 0 0 15px rgba(0,0,0,0.5);
+}
+.score-label{
+  font-size:9px;letter-spacing:.4em;color:rgba(155,188,15,0.5);
+  text-transform:uppercase;margin-bottom:3px;
+}
+.score-val{
+  font-family:'VT323',monospace;font-size:42px;
+  color:#9bbc0f;line-height:1;
+  text-shadow:0 0 12px rgba(155,188,15,0.9),0 0 30px rgba(155,188,15,0.4);
+}
+#hi-score{margin-top:8px;}
+.hi-val{font-size:26px;color:rgba(155,188,15,0.6);}
+
+/* LEVEL */
+#level-badge{
+  position:fixed;top:20px;right:20px;z-index:20;
+  padding:10px 18px;
+  background:rgba(10,12,8,0.85);
+  border:1px solid rgba(155,188,15,0.3);
+  border-radius:4px;
+  text-align:center;
+}
+.lv-label{font-size:9px;letter-spacing:.3em;color:rgba(155,188,15,0.4);text-transform:uppercase;}
+.lv-val{font-family:'VT323',monospace;font-size:36px;color:#9bbc0f;line-height:1;
+  text-shadow:0 0 10px rgba(155,188,15,0.8);}
+
+/* CONTROLS HINT */
+#controls-hint{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  z-index:20;
+  display:flex;gap:8px;align-items:center;
+}
+.key-chip{
+  background:rgba(155,188,15,0.08);border:1px solid rgba(155,188,15,0.25);
+  border-radius:3px;padding:4px 10px;
+  font-size:10px;letter-spacing:.2em;color:rgba(155,188,15,0.5);
+  text-transform:uppercase;
+}
+.key-sep{color:rgba(155,188,15,0.2);font-size:10px;}
+
+/* ─── TITLE OVERLAY ─── */
+#title-screen{
+  position:fixed;inset:0;z-index:100;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at center, rgba(10,12,8,0.6) 0%, rgba(3,4,2,0.97) 100%);
+  transition:opacity .8s;
+}
+#title-screen.out{opacity:0;pointer-events:none;}
+
+.nokia-logo{
+  font-family:'Orbitron',sans-serif;font-size:clamp(11px,2vw,16px);
+  letter-spacing:.8em;color:rgba(155,188,15,0.35);
+  text-transform:uppercase;margin-bottom:18px;
+}
+.game-title{
+  font-family:'VT323',monospace;font-size:clamp(80px,12vw,140px);
+  color:#9bbc0f;line-height:.9;
+  text-shadow:0 0 40px rgba(155,188,15,0.9),0 0 80px rgba(155,188,15,0.4),0 0 140px rgba(155,188,15,0.2);
+  animation:titlePulse 2s ease-in-out infinite;
+}
+@keyframes titlePulse{
+  0%,100%{text-shadow:0 0 40px rgba(155,188,15,.9),0 0 80px rgba(155,188,15,.4);}
+  50%{text-shadow:0 0 60px rgba(155,188,15,1),0 0 120px rgba(155,188,15,.7),0 0 200px rgba(155,188,15,.3);}
+}
+.title-divider{
+  width:260px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(155,188,15,.6),transparent);
+  margin:20px auto;
+}
+.title-sub{
+  font-family:'VT323',monospace;font-size:22px;
+  color:rgba(155,188,15,0.4);letter-spacing:.3em;margin-bottom:40px;
+}
+.start-btn{
+  font-family:'Orbitron',sans-serif;font-size:13px;letter-spacing:.3em;
+  color:#9bbc0f;border:1px solid rgba(155,188,15,.4);
+  background:rgba(155,188,15,.06);
+  padding:14px 44px;cursor:pointer;text-transform:uppercase;
+  transition:all .3s;position:relative;overflow:hidden;
+}
+.start-btn::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(155,188,15,.1),transparent);
+  transform:translateX(-100%);transition:.5s;
+}
+.start-btn:hover::before{transform:translateX(100%);}
+.start-btn:hover{border-color:#9bbc0f;box-shadow:0 0 25px rgba(155,188,15,.25);}
+.pixel-hint{
+  font-family:'VT323',monospace;font-size:18px;
+  color:rgba(155,188,15,.25);margin-top:22px;letter-spacing:.15em;
+  animation:blink 1.2s step-end infinite;
+}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+
+/* ─── GAME OVER ─── */
+#gameover-screen{
+  position:fixed;inset:0;z-index:100;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  background:rgba(3,4,2,0);
+  animation:goFade 1s ease forwards;
+}
+@keyframes goFade{to{background:rgba(3,4,2,.93);}}
+.go-title{
+  font-family:'VT323',monospace;font-size:clamp(60px,10vw,110px);
+  color:#cc3300;line-height:1;
+  text-shadow:0 0 40px rgba(200,50,0,.8);
+  animation:goIn 1s ease .5s both;
+}
+@keyframes goIn{from{opacity:0;transform:scale(1.3);}to{opacity:1;transform:scale(1);}}
+.go-score{
+  font-family:'VT323',monospace;font-size:40px;color:#9bbc0f;margin-top:16px;
+  animation:goIn 1s ease .9s both;
+}
+.go-btn{
+  font-family:'Orbitron',sans-serif;font-size:12px;letter-spacing:.3em;
+  color:#9bbc0f;border:1px solid rgba(155,188,15,.4);
+  background:rgba(155,188,15,.06);padding:12px 36px;cursor:pointer;
+  text-transform:uppercase;margin-top:28px;transition:all .3s;
+  animation:goIn 1s ease 1.3s both;
+}
+.go-btn:hover{border-color:#9bbc0f;box-shadow:0 0 20px rgba(155,188,15,.2);}
+
+/* ─── MOBILE DPAD ─── */
+#dpad{
+  position:fixed;bottom:70px;right:30px;z-index:20;
+  display:none;
+}
+@media(max-width:768px){#dpad{display:block;}}
+.dpad-grid{display:grid;grid-template-columns:repeat(3,44px);grid-template-rows:repeat(3,44px);gap:4px;}
+.dpad-btn{
+  background:rgba(155,188,15,.1);border:1px solid rgba(155,188,15,.3);
+  border-radius:4px;display:flex;align-items:center;justify-content:center;
+  font-size:20px;color:#9bbc0f;cursor:pointer;user-select:none;
+  transition:background .1s;
+}
+.dpad-btn:active{background:rgba(155,188,15,.25);}
+.dpad-empty{background:transparent;border:none;}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<!-- SCORE -->
+<div id="score-panel">
+  <div class="score-label">Score</div>
+  <div class="score-val" id="score-val">0</div>
+  <div id="hi-score">
+    <div class="score-label">Best</div>
+    <div class="score-val hi-val" id="hi-val">0</div>
+  </div>
+</div>
+<div id="level-badge">
+  <div class="lv-label">Level</div>
+  <div class="lv-val" id="lv-val">1</div>
+</div>
+
+<!-- CONTROLS -->
+<div id="controls-hint">
+  <div class="key-chip">↑↓←→</div>
+  <div class="key-sep">/</div>
+  <div class="key-chip">WASD</div>
+  <div class="key-sep">·</div>
+  <div class="key-chip">P Pause</div>
+</div>
+
+<!-- MOBILE DPAD -->
+<div id="dpad">
+  <div class="dpad-grid">
+    <div class="dpad-empty"></div>
+    <div class="dpad-btn" ontouchstart="mobileDir(0,-1)">▲</div>
+    <div class="dpad-empty"></div>
+    <div class="dpad-btn" ontouchstart="mobileDir(-1,0)">◄</div>
+    <div class="dpad-empty"></div>
+    <div class="dpad-btn" ontouchstart="mobileDir(1,0)">►</div>
+    <div class="dpad-empty"></div>
+    <div class="dpad-btn" ontouchstart="mobileDir(0,1)">▼</div>
+    <div class="dpad-empty"></div>
+  </div>
+</div>
+
+<!-- TITLE -->
+<div id="title-screen">
+  <div class="nokia-logo">Nokia 3310</div>
+  <div class="game-title">SNAKE</div>
+  <div class="title-divider"></div>
+  <div class="title-sub">3D EDITION</div>
+  <button class="start-btn" id="start-btn">Press Start</button>
+  <div class="pixel-hint">Insert Coin</div>
+</div>
+
+<!-- GAME OVER -->
+<div id="gameover-screen">
+  <div class="go-title">GAME OVER</div>
+  <div class="go-score" id="go-score-val">Score: 0</div>
+  <button class="go-btn" id="go-btn">Play Again</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════
+// RENDERER
+// ═══════════════════════════════════════════════════════════
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+
+const scene = new THREE.Scene();
+scene.background = null;
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 200);
+
+window.addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  positionCamera();
+});
+
+// ═══════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════
+const GRID = 16;           // cells per side
+const CELL = 1.0;          // world units per cell
+const BOARD_SIZE = GRID * CELL;
+const CELL_GAP = 0.07;
+const SEG_SIZE = CELL - CELL_GAP * 2;
+
+// Nokia green palette
+const C = {
+  screenBg:    0x0a0f06,
+  screenBgAlt: 0x0d1408,
+  gridLine:    0x1a2a0a,
+  snakeHead:   0x9bbc0f,
+  snakeBody:   0x6a9e08,
+  snakeTail:   0x4a7405,
+  food:        0xffd700,
+  foodGlow:    0xffaa00,
+  phoneDark:   0x1a1a1a,
+  phoneMid:    0x2a2a2a,
+  phoneLight:  0x3d3d3d,
+  screenFrame: 0x111111,
+  buttonGreen: 0x3a7a20,
+  buttonBlue:  0x1a3a7a,
+  buttonRed:   0x7a1a1a,
+  buttonGrey:  0x3a3a3a,
+  lcdGreen:    0x9bbc0f,
+};
+
+// ═══════════════════════════════════════════════════════════
+// MATERIALS
+// ═══════════════════════════════════════════════════════════
+const MAT = {
+  phone:       new THREE.MeshStandardMaterial({ color: C.phoneDark, roughness: 0.3, metalness: 0.6 }),
+  phoneMid:    new THREE.MeshStandardMaterial({ color: C.phoneMid, roughness: 0.35, metalness: 0.55 }),
+  phoneLight:  new THREE.MeshStandardMaterial({ color: C.phoneLight, roughness: 0.4, metalness: 0.5 }),
+  screenBg:    new THREE.MeshStandardMaterial({ color: C.screenBg, roughness: 0.85, metalness: 0.0 }),
+  screenGlass: new THREE.MeshStandardMaterial({ color: 0x111a09, roughness: 0.0, metalness: 0.0, transparent: true, opacity: 0.55 }),
+  gridLine:    new THREE.MeshStandardMaterial({ color: C.gridLine, roughness: 1.0, metalness: 0.0 }),
+  snakeHead:   new THREE.MeshStandardMaterial({ color: C.snakeHead, roughness: 0.3, metalness: 0.1,
+                  emissive: new THREE.Color(C.snakeHead), emissiveIntensity: 0.6 }),
+  snakeBody:   new THREE.MeshStandardMaterial({ color: C.snakeBody, roughness: 0.35, metalness: 0.1,
+                  emissive: new THREE.Color(C.snakeBody), emissiveIntensity: 0.3 }),
+  snakeTail:   new THREE.MeshStandardMaterial({ color: C.snakeTail, roughness: 0.4, metalness: 0.1,
+                  emissive: new THREE.Color(C.snakeTail), emissiveIntensity: 0.15 }),
+  food:        new THREE.MeshStandardMaterial({ color: C.food, roughness: 0.15, metalness: 0.3,
+                  emissive: new THREE.Color(C.food), emissiveIntensity: 1.2 }),
+  btnGreen:    new THREE.MeshStandardMaterial({ color: C.buttonGreen, roughness: 0.5, metalness: 0.4 }),
+  btnBlue:     new THREE.MeshStandardMaterial({ color: C.buttonBlue, roughness: 0.5, metalness: 0.4 }),
+  btnRed:      new THREE.MeshStandardMaterial({ color: C.buttonRed, roughness: 0.5, metalness: 0.4 }),
+  btnGrey:     new THREE.MeshStandardMaterial({ color: C.buttonGrey, roughness: 0.5, metalness: 0.3 }),
+  navBtn:      new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.4, metalness: 0.6 }),
+  navCenter:   new THREE.MeshStandardMaterial({ color: C.buttonGreen, roughness: 0.3, metalness: 0.5,
+                  emissive: new THREE.Color(0x1a4a08), emissiveIntensity: 0.5 }),
+  speaker:     new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9, metalness: 0.2 }),
+  rubber:      new THREE.MeshStandardMaterial({ color: 0x0f0f0f, roughness: 0.95, metalness: 0.0 }),
+  screen_glow: new THREE.MeshStandardMaterial({ color: C.lcdGreen, roughness: 0.8, metalness: 0.0,
+                  emissive: new THREE.Color(C.lcdGreen), emissiveIntensity: 0.08, transparent: true, opacity: 0.15 }),
+};
+
+// ═══════════════════════════════════════════════════════════
+// NOKIA PHONE BUILD
+// ═══════════════════════════════════════════════════════════
+const phoneGroup = new THREE.Group();
+scene.add(phoneGroup);
+
+function roundedBox(w, h, d, r, segs = 3) {
+  // Simulate rounded box using scaled sphere + box combo approach
+  // We'll use a BoxGeometry as base for simplicity
+  return new THREE.BoxGeometry(w, h, d);
+}
+
+function buildPhone() {
+  const PH = phoneGroup;
+
+  // ── BODY ──
+  // Main body — tall rectangle with slightly rounded feel via bevel-like layering
+  const bodyGeo = new THREE.BoxGeometry(6.2, 12.5, 1.1);
+  const body = new THREE.Mesh(bodyGeo, MAT.phone);
+  body.castShadow = true; body.receiveShadow = true;
+  PH.add(body);
+
+  // Side trim highlights
+  const sideTrimGeo = new THREE.BoxGeometry(6.0, 12.3, 1.0);
+  const sideTrim = new THREE.Mesh(sideTrimGeo, MAT.phoneMid);
+  sideTrim.position.z = 0.06;
+  PH.add(sideTrim);
+
+  // Top cap
+  const topCapGeo = new THREE.CylinderGeometry(3.1, 3.1, 1.1, 32, 1, false, 0, Math.PI);
+  const topCap = new THREE.Mesh(topCapGeo, MAT.phone);
+  topCap.position.y = 6.25; topCap.rotation.z = Math.PI/2; topCap.rotation.x = Math.PI/2;
+  PH.add(topCap);
+
+  // Bottom cap (more pronounced curve)
+  const botCapGeo = new THREE.CylinderGeometry(3.1, 3.1, 1.1, 32, 1, false, 0, Math.PI);
+  const botCap = new THREE.Mesh(botCapGeo, MAT.phone);
+  botCap.position.y = -6.25; botCap.rotation.z = -Math.PI/2; botCap.rotation.x = Math.PI/2;
+  PH.add(botCap);
+
+  // ── SCREEN AREA ──
+  const screenW = 4.6, screenH = 5.2;
+
+  // Screen recess
+  const screenRecessGeo = new THREE.BoxGeometry(screenW + 0.3, screenH + 0.3, 0.12);
+  const screenRecess = new THREE.Mesh(screenRecessGeo, MAT.screenBg);
+  screenRecess.position.set(0, 2.6, 0.56);
+  PH.add(screenRecess);
+
+  // Screen active area (the LCD itself)
+  const screenGeo = new THREE.BoxGeometry(screenW, screenH, 0.04);
+  const screenMesh = new THREE.Mesh(screenGeo, MAT.screenBg);
+  screenMesh.position.set(0, 2.6, 0.62);
+  screenMesh.receiveShadow = true;
+  PH.add(screenMesh);
+  phoneGroup.userData.screenMesh = screenMesh;
+  phoneGroup.userData.screenPos = new THREE.Vector3(0, 2.6, 0.62);
+  phoneGroup.userData.screenW = screenW;
+  phoneGroup.userData.screenH = screenH;
+
+  // Screen glass overlay
+  const glassGeo = new THREE.BoxGeometry(screenW + 0.4, screenH + 0.4, 0.02);
+  const glass = new THREE.Mesh(glassGeo, MAT.screenGlass);
+  glass.position.set(0, 2.6, 0.65);
+  PH.add(glass);
+
+  // Screen glow plane (behind snake elements)
+  const glowGeo = new THREE.BoxGeometry(screenW - 0.1, screenH - 0.1, 0.01);
+  const glow = new THREE.Mesh(glowGeo, MAT.screen_glow);
+  glow.position.set(0, 2.6, 0.63);
+  PH.add(glow);
+  phoneGroup.userData.screenGlow = glow;
+
+  // Screen frame / bezel
+  const bezelMat = new THREE.MeshStandardMaterial({ color: 0x0d0d0d, roughness: 0.6, metalness: 0.4 });
+  // Top bezel
+  const tbGeo = new THREE.BoxGeometry(screenW + 0.3, 0.35, 0.15);
+  const tb = new THREE.Mesh(tbGeo, bezelMat); tb.position.set(0, 5.09, 0.61); PH.add(tb);
+  // Bottom bezel
+  const bbGeo = new THREE.BoxGeometry(screenW + 0.3, 0.35, 0.15);
+  const bb = new THREE.Mesh(bbGeo, bezelMat); bb.position.set(0, 0.11, 0.61); PH.add(bb);
+  // Side bezels
+  const lbGeo = new THREE.BoxGeometry(0.35, screenH + 0.0, 0.15);
+  const lb = new THREE.Mesh(lbGeo, bezelMat); lb.position.set(-2.475, 2.6, 0.61); PH.add(lb);
+  const rb = lb.clone(); rb.position.set(2.475, 2.6, 0.61); PH.add(rb);
+
+  // ── NOKIA LOGO on top ──
+  const logoGeo = new THREE.BoxGeometry(2.2, 0.3, 0.02);
+  const logoMat = new THREE.MeshStandardMaterial({ color:0x888888, roughness:0.3, metalness:0.8 });
+  const logo = new THREE.Mesh(logoGeo, logoMat);
+  logo.position.set(0, 5.85, 0.56); PH.add(logo);
+
+  // Nokia text lines (3 thin lines as visual stand-in)
+  for (let i = 0; i < 3; i++) {
+    const lGeo = new THREE.BoxGeometry(0.15, 0.25, 0.02);
+    const l = new THREE.Mesh(lGeo, logoMat);
+    l.position.set(-0.4 + i * 0.4, 5.85, 0.58); PH.add(l);
+  }
+
+  // ── EARPIECE ──
+  for (let i = -2; i <= 2; i++) {
+    const earGeo = new THREE.BoxGeometry(0.12, 0.5, 0.08);
+    const ear = new THREE.Mesh(earGeo, MAT.speaker);
+    ear.position.set(i * 0.32, 5.5, 0.60); PH.add(ear);
+  }
+
+  // ── NAVIGATION D-PAD ──
+  const dpadGroup = new THREE.Group(); dpadGroup.position.set(0, -0.6, 0.62);
+
+  // Outer nav ring
+  const navRingGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.18, 48);
+  const navRing = new THREE.Mesh(navRingGeo, MAT.navBtn);
+  navRing.rotation.x = Math.PI/2; dpadGroup.add(navRing);
+
+  // Inner nav ring
+  const navInnerGeo = new THREE.CylinderGeometry(0.9, 0.9, 0.22, 48);
+  const navInner = new THREE.Mesh(navInnerGeo, new THREE.MeshStandardMaterial({color:0x333333,roughness:.4,metalness:.5}));
+  navInner.rotation.x = Math.PI/2; dpadGroup.add(navInner);
+
+  // Center button
+  const centerGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.28, 32);
+  const center = new THREE.Mesh(centerGeo, MAT.navCenter);
+  center.rotation.x = Math.PI/2; dpadGroup.add(center);
+
+  // D-pad arrow bumps
+  const dirs = [[0,1.1,0],[0,-1.1,0],[-1.1,0,0],[1.1,0,0]];
+  dirs.forEach(([x,y,z]) => {
+    const bGeo = new THREE.BoxGeometry(0.4, 0.4, 0.08);
+    const b = new THREE.Mesh(bGeo, new THREE.MeshStandardMaterial({color:0x1e1e1e,roughness:.6,metalness:.4}));
+    b.position.set(x, y, 0.14); dpadGroup.add(b);
+  });
+
+  PH.add(dpadGroup);
+
+  // ── FUNCTION BUTTONS (row below d-pad) ──
+  const funcColors = [MAT.btnGreen, MAT.btnRed];
+  [-1.6, 1.6].forEach((x, i) => {
+    const fGeo = new THREE.BoxGeometry(1.2, 0.5, 0.22);
+    const f = new THREE.Mesh(fGeo, funcColors[i]);
+    f.position.set(x, -2.3, 0.62); f.castShadow = true; PH.add(f);
+    // button top face bevel
+    const ftGeo = new THREE.BoxGeometry(1.1, 0.4, 0.06);
+    const ft = new THREE.Mesh(ftGeo, funcColors[i]);
+    ft.position.set(x, -2.3, 0.74); PH.add(ft);
+  });
+
+  // ── NUMERIC KEYPAD (3×4 grid) ──
+  const numRows = 4, numCols = 3;
+  const numColors = [MAT.btnGrey, MAT.btnGrey, MAT.btnGrey,
+                     MAT.btnGrey, MAT.btnGrey, MAT.btnGrey,
+                     MAT.btnGrey, MAT.btnGrey, MAT.btnGrey,
+                     MAT.btnBlue, MAT.btnGrey, MAT.btnBlue];
+  let btnIdx = 0;
+  for (let row = 0; row < numRows; row++) {
+    for (let col = 0; col < numCols; col++) {
+      const bx = (col - 1) * 1.65;
+      const by = -3.5 - row * 0.9;
+      const bGeo = new THREE.BoxGeometry(1.3, 0.64, 0.22);
+      const b = new THREE.Mesh(bGeo, numColors[btnIdx] || MAT.btnGrey);
+      b.position.set(bx, by, 0.62); b.castShadow = true; PH.add(b);
+      // top shine
+      const bsGeo = new THREE.BoxGeometry(1.18, 0.54, 0.05);
+      const bs = new THREE.Mesh(bsGeo, numColors[btnIdx] || MAT.btnGrey);
+      bs.position.set(bx, by, 0.74); PH.add(bs);
+      btnIdx++;
+    }
+  }
+
+  // ── SPEAKER GRILLE (bottom) ──
+  for (let i = -3; i <= 3; i++) {
+    const spGeo = new THREE.BoxGeometry(0.1, 0.8, 0.06);
+    const sp = new THREE.Mesh(spGeo, MAT.speaker);
+    sp.position.set(i * 0.28, -6.5, 0.58); PH.add(sp);
+  }
+
+  // ── SIDE VOLUME BUTTON ──
+  const volGeo = new THREE.BoxGeometry(0.18, 0.9, 0.35);
+  const vol = new THREE.Mesh(volGeo, MAT.phoneMid);
+  vol.position.set(-3.18, 3.5, 0); PH.add(vol);
+
+  // ── CAMERA LENS (top) ──
+  const lensGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.12, 24);
+  const lensMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.0, metalness: 0.9, envMapIntensity: 1 });
+  const lens = new THREE.Mesh(lensGeo, lensMat);
+  lens.rotation.x = Math.PI/2; lens.position.set(1.5, 6.0, 0.5); PH.add(lens);
+  const lensRingGeo = new THREE.TorusGeometry(0.25, 0.06, 12, 32);
+  const lensRing = new THREE.Mesh(lensRingGeo, MAT.phoneLight);
+  lensRing.position.set(1.5, 6.0, 0.52); PH.add(lensRing);
+
+  // ── BACK PANEL TEXTURE LINES ──
+  for (let i = -5; i <= 5; i++) {
+    const lineGeo = new THREE.BoxGeometry(5.8, 0.04, 0.01);
+    const lineMat = new THREE.MeshStandardMaterial({ color: 0x262626, roughness: 1, metalness: 0 });
+    const line = new THREE.Mesh(lineGeo, lineMat);
+    line.position.set(0, i * 1.2, -0.56); PH.add(line);
+  }
+}
+
+buildPhone();
+
+// ═══════════════════════════════════════════════════════════
+// SCREEN GRID (game board)
+// ═══════════════════════════════════════════════════════════
+const boardGroup = new THREE.Group();
+// Position it exactly on the screen face
+const SCREEN_W = phoneGroup.userData.screenW;
+const SCREEN_H = phoneGroup.userData.screenH;
+const BOARD_OFFSET_X = -SCREEN_W / 2 + CELL / 2;
+const BOARD_OFFSET_Y = -SCREEN_H / 2 + CELL / 2;
+const CELL_SCALE = Math.min(SCREEN_W, SCREEN_H) / GRID;
+
+boardGroup.position.set(0, 2.6, 0.65);
+boardGroup.scale.setScalar(CELL_SCALE);
+scene.add(boardGroup);
+
+// Grid dots/lines on screen floor
+function buildGrid() {
+  // Grid floor
+  const floorGeo = new THREE.BoxGeometry(GRID, GRID, 0.05);
+  const floor = new THREE.Mesh(floorGeo, new THREE.MeshStandardMaterial({
+    color: C.screenBg, roughness: 0.9, metalness: 0.0,
+    emissive: new THREE.Color(C.screenBg), emissiveIntensity: 0.1
+  }));
+  floor.position.set(GRID/2 - 0.5, GRID/2 - 0.5, -0.04);
+  boardGroup.add(floor);
+
+  // Grid dot pattern
+  const dotGeo = new THREE.BoxGeometry(0.06, 0.06, 0.04);
+  const dotMat = new THREE.MeshStandardMaterial({ color: 0x1c2e0a, roughness: 1 });
+  for (let x = 0; x < GRID; x++) {
+    for (let y = 0; y < GRID; y++) {
+      const dot = new THREE.Mesh(dotGeo, dotMat);
+      dot.position.set(x, y, 0);
+      boardGroup.add(dot);
+    }
+  }
+}
+buildGrid();
+
+// ═══════════════════════════════════════════════════════════
+// SNAKE SEGMENTS (pooled)
+// ═══════════════════════════════════════════════════════════
+const POOL_SIZE = GRID * GRID;
+const segPool = [];
+const foodMeshes = [];
+
+function createSegMesh() {
+  const geo = new THREE.BoxGeometry(SEG_SIZE, SEG_SIZE, SEG_SIZE * 0.7);
+  const mesh = new THREE.Mesh(geo, MAT.snakeBody.clone());
+  mesh.visible = false;
+  mesh.castShadow = true;
+  boardGroup.add(mesh);
+  return mesh;
+}
+
+for (let i = 0; i < POOL_SIZE; i++) segPool.push(createSegMesh());
+
+// Head is special — slightly bigger, different shape
+const headGeo = new THREE.BoxGeometry(SEG_SIZE + 0.05, SEG_SIZE + 0.05, SEG_SIZE * 0.85);
+const headMesh = new THREE.Mesh(headGeo, MAT.snakeHead);
+headMesh.visible = false;
+headMesh.castShadow = true;
+boardGroup.add(headMesh);
+
+// Head eyes
+const eyeGeo = new THREE.SphereGeometry(0.09, 8, 8);
+const eyeMat = new THREE.MeshStandardMaterial({ color: 0x001a00, roughness: 0.5, metalness: 0 });
+const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+eyeL.position.set(-0.22, 0.22, 0.3); eyeR.position.set(0.22, 0.22, 0.3);
+headMesh.add(eyeL, eyeR);
+// Eye whites
+const whiteGeo = new THREE.SphereGeometry(0.06, 8, 8);
+const whiteMat = new THREE.MeshStandardMaterial({ color: 0xaaffaa, emissive: new THREE.Color(0x44ff44), emissiveIntensity: 0.8 });
+const wL = new THREE.Mesh(whiteGeo, whiteMat); wL.position.set(-0.22, 0.22, 0.33);
+const wR = new THREE.Mesh(whiteGeo, whiteMat); wR.position.set(0.22, 0.22, 0.33);
+headMesh.add(wL, wR);
+
+// Food mesh
+const foodGeo = new THREE.OctahedronGeometry(SEG_SIZE * 0.45, 1);
+const foodMesh = new THREE.Mesh(foodGeo, MAT.food);
+foodMesh.visible = false;
+boardGroup.add(foodMesh);
+const foodLight = new THREE.PointLight(C.food, 1.5, 4);
+foodMesh.add(foodLight);
+
+// Snake light (follows head)
+const snakeLight = new THREE.PointLight(C.lcdGreen, 0.8, 5);
+boardGroup.add(snakeLight);
+
+// ═══════════════════════════════════════════════════════════
+// PARTICLES
+// ═══════════════════════════════════════════════════════════
+const particles = [];
+function spawnParticles(gx, gy, count, col) {
+  for (let i = 0; i < count; i++) {
+    const geo = new THREE.OctahedronGeometry(0.12 + Math.random() * 0.12, 0);
+    const mat = new THREE.MeshBasicMaterial({ color: col });
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(gx, gy, 0.3);
+    boardGroup.add(m);
+    const vx = (Math.random() - 0.5) * 3;
+    const vy = (Math.random() - 0.5) * 3;
+    const vz = Math.random() * 2.5 + 0.5;
+    particles.push({ mesh: m, vx, vy, vz, life: 0.7 + Math.random() * 0.5, maxLife: 1 });
+  }
+}
+particles.forEach = Array.prototype.forEach.bind(particles);
+
+// ═══════════════════════════════════════════════════════════
+// LIGHTING
+// ═══════════════════════════════════════════════════════════
+function buildLighting() {
+  // Key light — warm from upper-right
+  const key = new THREE.DirectionalLight(0xfff5e0, 2.2);
+  key.position.set(8, 12, 12);
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.camera.near = 0.5;
+  key.shadow.camera.far = 60;
+  key.shadow.camera.left = -15;
+  key.shadow.camera.right = 15;
+  key.shadow.camera.top = 20;
+  key.shadow.camera.bottom = -20;
+  key.shadow.bias = -0.001;
+  scene.add(key);
+
+  // Fill — cool blue from left
+  const fill = new THREE.DirectionalLight(0x80a8ff, 0.4);
+  fill.position.set(-8, 4, 6); scene.add(fill);
+
+  // Rim — green back light (gives Nokia screen feel)
+  const rim = new THREE.DirectionalLight(0x4a8000, 0.6);
+  rim.position.set(0, -5, -8); scene.add(rim);
+
+  // Ambient
+  const amb = new THREE.AmbientLight(0x1a2408, 0.8); scene.add(amb);
+
+  // Screen glow light (from the phone screen)
+  const screenLight = new THREE.PointLight(0x9bbc0f, 0.6, 12);
+  screenLight.position.set(0, 2.6, 2.5);
+  phoneGroup.add(screenLight);
+  phoneGroup.userData.screenLight = screenLight;
+}
+buildLighting();
+
+// ═══════════════════════════════════════════════════════════
+// CAMERA SETUP
+// ═══════════════════════════════════════════════════════════
+let camAngle = 0;
+let camAutoRotate = true;
+
+function positionCamera() {
+  // Isometric-ish angle showing phone front + slight side
+  camera.position.set(4, 8, 22);
+  camera.lookAt(0, 1, 0);
+}
+positionCamera();
+
+// ═══════════════════════════════════════════════════════════
+// GAME LOGIC
+// ═══════════════════════════════════════════════════════════
+const SPEEDS = [280, 240, 200, 165, 130, 100, 80, 65, 50, 38]; // ms per tick per level
+const LEVEL_THRESHOLDS = [0, 3, 6, 10, 15, 21, 28, 36, 45, 55];
+
+let snake = [];
+let dir = { x: 1, y: 0 };
+let nextDir = { x: 1, y: 0 };
+let food = { x: 0, y: 0 };
+let score = 0;
+let hiScore = parseInt(localStorage.getItem('snakeHiScore') || '0');
+let level = 1;
+let gameState = 'title'; // title, playing, paused, dead
+let tickTimer = 0;
+let tickInterval = SPEEDS[0];
+let deathAnim = 0;
+let growCount = 0;
+
+document.getElementById('hi-val').textContent = hiScore;
+
+function cellToWorld(x, y) {
+  // Convert grid coords to boardGroup local space
+  return { x: x, y: y, z: 0.2 };
+}
+
+function placeFood() {
+  const occupied = new Set(snake.map(s => `${s.x},${s.y}`));
+  let fx, fy;
+  do {
+    fx = Math.floor(Math.random() * GRID);
+    fy = Math.floor(Math.random() * GRID);
+  } while (occupied.has(`${fx},${fy}`));
+  food = { x: fx, y: fy };
+  foodMesh.position.set(food.x, food.y, 0.25);
+  foodMesh.visible = true;
+}
+
+function initGame() {
+  // Clear snake meshes
+  segPool.forEach(m => { m.visible = false; });
+  headMesh.visible = false;
+  foodMesh.visible = false;
+  particles.splice(0, particles.length).forEach(p => boardGroup.remove(p.mesh));
+
+  const startX = Math.floor(GRID / 2);
+  const startY = Math.floor(GRID / 2);
+  snake = [
+    { x: startX, y: startY },
+    { x: startX - 1, y: startY },
+    { x: startX - 2, y: startY },
+  ];
+  dir = { x: 1, y: 0 };
+  nextDir = { x: 1, y: 0 };
+  score = 0;
+  level = 1;
+  tickInterval = SPEEDS[0];
+  growCount = 0;
+  deathAnim = 0;
+
+  placeFood();
+  updateHUD();
+  renderSnake();
+}
+
+function tick() {
+  if (gameState !== 'playing') return;
+
+  dir = { ...nextDir };
+  const head = snake[0];
+  const newHead = {
+    x: (head.x + dir.x + GRID) % GRID,
+    y: (head.y + dir.y + GRID) % GRID
+  };
+
+  // Self collision
+  const hitSelf = snake.some(s => s.x === newHead.x && s.y === newHead.y);
+  if (hitSelf) {
+    gameState = 'dead';
+    deathAnim = 0;
+    triggerDeath();
+    return;
+  }
+
+  // Eat food
+  const ate = newHead.x === food.x && newHead.y === food.y;
+  snake.unshift(newHead);
+  if (!ate) { snake.pop(); }
+  else {
+    growCount++;
+    score += level * 10;
+    spawnParticles(food.x, food.y, 18, C.food);
+    spawnParticles(food.x, food.y, 8, C.snakeHead);
+    // Level up?
+    const newLevel = LEVEL_THRESHOLDS.findLastIndex(t => score >= t * 10) + 1;
+    if (newLevel > level) {
+      level = Math.min(newLevel, SPEEDS.length);
+      tickInterval = SPEEDS[level - 1];
+    }
+    placeFood();
+    updateHUD();
+    // Camera micro-shake
+    camShakeAmt = 0.12;
+  }
+
+  renderSnake();
+}
+
+let camShakeAmt = 0;
+
+function renderSnake() {
+  // Hide all pool segments
+  segPool.forEach(m => { m.visible = false; });
+
+  // Render head
+  const h = snake[0];
+  headMesh.position.set(h.x, h.y, 0.22);
+  headMesh.visible = true;
+  // Orient head
+  const ang = Math.atan2(dir.y, dir.x);
+  headMesh.rotation.z = ang;
+
+  // Render body segments
+  for (let i = 1; i < snake.length; i++) {
+    const seg = snake[i];
+    const mesh = segPool[i - 1];
+    if (!mesh) continue;
+    mesh.visible = true;
+    mesh.position.set(seg.x, seg.y, 0.2);
+
+    // Color gradient: bright head → dark tail
+    const t = i / snake.length;
+    const col = new THREE.Color().lerpColors(
+      new THREE.Color(C.snakeBody), new THREE.Color(C.snakeTail), t
+    );
+    mesh.material.color.copy(col);
+    mesh.material.emissive.copy(col);
+    mesh.material.emissiveIntensity = 0.3 * (1 - t);
+    mesh.scale.setScalar(1 - t * 0.35);
+  }
+
+  // Move snake glow to head
+  snakeLight.position.set(h.x, h.y, 1);
+}
+
+// ═══════════════════════════════════════════════════════════
+// HUD
+// ═══════════════════════════════════════════════════════════
+function updateHUD() {
+  document.getElementById('score-val').textContent = score;
+  document.getElementById('lv-val').textContent = level;
+  if (score > hiScore) {
+    hiScore = score;
+    localStorage.setItem('snakeHiScore', hiScore);
+  }
+  document.getElementById('hi-val').textContent = hiScore;
+}
+
+// ═══════════════════════════════════════════════════════════
+// DEATH + TRANSITIONS
+// ═══════════════════════════════════════════════════════════
+function triggerDeath() {
+  setTimeout(() => {
+    document.getElementById('go-score-val').textContent = `Score: ${score}`;
+    document.getElementById('gameover-screen').style.display = 'flex';
+    updateHUD();
+  }, 1000);
+}
+
+document.getElementById('go-btn').addEventListener('click', () => {
+  document.getElementById('gameover-screen').style.display = 'none';
+  gameState = 'playing';
+  initGame();
+});
+
+document.getElementById('start-btn').addEventListener('click', startGame);
+
+function startGame() {
+  document.getElementById('title-screen').classList.add('out');
+  setTimeout(() => {
+    document.getElementById('title-screen').style.display = 'none';
+  }, 900);
+  gameState = 'playing';
+  camAutoRotate = false;
+  camera.position.set(4, 8, 22);
+  camera.lookAt(0, 1, 0);
+  initGame();
+}
+
+// ═══════════════════════════════════════════════════════════
+// INPUT
+// ═══════════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (gameState === 'title') { startGame(); return; }
+  if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+    if (gameState === 'playing') gameState = 'paused';
+    else if (gameState === 'paused') gameState = 'playing';
+    return;
+  }
+  const DIRS = {
+    'ArrowUp':    {x:0,y:1},  'w':{x:0,y:1},  'W':{x:0,y:1},
+    'ArrowDown':  {x:0,y:-1}, 's':{x:0,y:-1}, 'S':{x:0,y:-1},
+    'ArrowLeft':  {x:-1,y:0}, 'a':{x:-1,y:0}, 'A':{x:-1,y:0},
+    'ArrowRight': {x:1,y:0},  'd':{x:1,y:0},  'D':{x:1,y:0},
+  };
+  const d = DIRS[e.key];
+  if (d) {
+    // Prevent 180 turn
+    if (snake.length > 1 && d.x === -dir.x && d.y === -dir.y) return;
+    nextDir = d;
+    e.preventDefault();
+  }
+});
+
+function mobileDir(dx, dy) {
+  if (snake.length > 1 && dx === -dir.x && dy === -dir.y) return;
+  nextDir = { x: dx, y: dy };
+  if (gameState === 'title') startGame();
+}
+window.mobileDir = mobileDir;
+
+// ═══════════════════════════════════════════════════════════
+// MAIN LOOP
+// ═══════════════════════════════════════════════════════════
+let lastTime = performance.now();
+let time = 0;
+let phoneRot = new THREE.Euler(0, 0, 0);
+const TARGET_ROT = new THREE.Euler(-0.08, 0.18, 0.04);
+
+// Smooth phone "breathing" rotation when idle
+function updatePhoneAnim(dt) {
+  if (gameState === 'title') {
+    // Slowly rotate to show off phone
+    phoneGroup.rotation.y = Math.sin(time * 0.3) * 0.35;
+    phoneGroup.rotation.x = Math.sin(time * 0.2) * 0.06 - 0.04;
+  } else {
+    // Settle to a fixed nice angle
+    phoneGroup.rotation.y += (TARGET_ROT.y - phoneGroup.rotation.y) * 0.03;
+    phoneGroup.rotation.x += (TARGET_ROT.x - phoneGroup.rotation.x) * 0.03;
+    phoneGroup.rotation.z += (TARGET_ROT.z - phoneGroup.rotation.z) * 0.03;
+  }
+
+  // Camera shake
+  if (camShakeAmt > 0.001) {
+    camera.position.x += (Math.random() - 0.5) * camShakeAmt;
+    camera.position.y += (Math.random() - 0.5) * camShakeAmt;
+    camShakeAmt *= 0.7;
+  }
+}
+
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.life -= dt;
+    if (p.life <= 0) {
+      boardGroup.remove(p.mesh);
+      particles.splice(i, 1);
+      continue;
+    }
+    p.mesh.position.x += p.vx * dt;
+    p.mesh.position.y += p.vy * dt;
+    p.mesh.position.z += p.vz * dt;
+    p.vz -= 4 * dt;
+    const s = (p.life / p.maxLife) * 0.9 + 0.1;
+    p.mesh.scale.setScalar(s);
+    p.mesh.rotation.x += 5 * dt;
+    p.mesh.rotation.y += 3 * dt;
+  }
+}
+
+function updateFoodAnim() {
+  if (foodMesh.visible) {
+    const pulse = 1 + Math.sin(time * 5) * 0.12;
+    foodMesh.scale.setScalar(pulse);
+    foodMesh.rotation.y = time * 2;
+    foodMesh.rotation.x = time * 1.3;
+    foodLight.intensity = 1.2 + Math.sin(time * 5) * 0.4;
+    // Move food color between gold and white
+    const t = (Math.sin(time * 3) + 1) / 2;
+    foodMesh.material.emissive.lerpColors(
+      new THREE.Color(0xffaa00), new THREE.Color(0xffffff), t * 0.4
+    );
+    foodMesh.material.emissiveIntensity = 1.0 + t * 0.5;
+  }
+}
+
+function updateDeathAnim(dt) {
+  if (gameState !== 'dead') return;
+  deathAnim += dt;
+  // Flash snake red
+  const flash = Math.sin(deathAnim * 20) > 0;
+  const deathMat = new THREE.MeshStandardMaterial({
+    color: flash ? 0xff2200 : 0x330000,
+    emissive: new THREE.Color(flash ? 0xff2200 : 0x110000),
+    emissiveIntensity: 1.5
+  });
+  for (let i = 0; i < snake.length; i++) {
+    const mesh = i === 0 ? headMesh : segPool[i - 1];
+    if (mesh && mesh.visible) mesh.material = deathMat;
+  }
+  // Screen glow goes red
+  if (phoneGroup.userData.screenLight) {
+    phoneGroup.userData.screenLight.color.setHex(flash ? 0xff2200 : 0x330000);
+  }
+}
+
+function resetDeathVisuals() {
+  headMesh.material = MAT.snakeHead;
+  segPool.forEach((m, i) => { if (i < snake.length) m.material = MAT.snakeBody.clone(); });
+  if (phoneGroup.userData.screenLight) {
+    phoneGroup.userData.screenLight.color.setHex(0x9bbc0f);
+  }
+}
+
+// Screen scanline effect on glow
+function updateScreenGlow() {
+  const glow = phoneGroup.userData.screenGlow;
+  if (!glow) return;
+  glow.material.opacity = 0.12 + Math.sin(time * 2) * 0.04;
+}
+
+function loop(ts) {
+  requestAnimationFrame(loop);
+  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+  time += dt;
+
+  updatePhoneAnim(dt);
+  updateParticles(dt);
+  updateFoodAnim();
+  updateScreenGlow();
+
+  if (gameState === 'playing') {
+    tickTimer += dt * 1000;
+    if (tickTimer >= tickInterval) {
+      tickTimer -= tickInterval;
+      tick();
+    }
+  }
+
+  if (gameState === 'dead') {
+    updateDeathAnim(dt);
+  }
+
+  // Head bob while playing
+  if (gameState === 'playing' && headMesh.visible) {
+    headMesh.position.z = 0.22 + Math.sin(time * 8) * 0.04;
+  }
+
+  renderer.render(scene, camera);
+}
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
